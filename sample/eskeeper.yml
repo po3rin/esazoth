@@ -1,0 +1,5 @@
+index:
+  - name: test-src
+    mapping: test.json
+  - name: test-dist
+    mapping: test.json

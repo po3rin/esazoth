@@ -1,0 +1,10 @@
+DROP SCHEMA IF EXISTS esazoth;
+CREATE SCHEMA esazoth;
+USE esazoth;
+
+DROP TABLE IF EXISTS tasks;
+
+CREATE TABLE tasks (
+    id VARCHAR(256) NOT NULL PRIMARY KEY,
+    completed BOOLEAN NOT NULL DEFAULT 0
+);
