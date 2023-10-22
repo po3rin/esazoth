@@ -9,10 +9,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/po3rin/esazoth/es"
 	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/slog"
-	"github.com/po3rin/esazoth/es"
 )
 
 var rootCmd = &cobra.Command{
