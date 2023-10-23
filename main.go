@@ -22,13 +22,7 @@ var rootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-		buffer, err := cmd.Flags().GetInt64("term")
-		if err != nil {
-			logger.Error(err.Error())
-			os.Exit(1)
-		}
-
-		err = run(buffer)
+		err := run()
 		if err != nil {
 			logger.Error(err.Error())
 			os.Exit(1)
@@ -36,11 +30,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func init() {
-	rootCmd.Flags().Int64P("buffer", "b", 0, "buffer to have during the synchronous batch period")
-}
-
-func run(buffer int64) error {
+func run() error {
 	es, err := es.NewClient()
 	if err != nil {
 		return err
@@ -65,17 +55,18 @@ func run(buffer int64) error {
 				}
 
 				if esResTask.Completed {
-					if err != nil {
-						return err
+					if esResTask.Error == nil {
+						if !esResTask.Response.TimeOut {
+							d := time.Unix(int64(esResTask.Task.StartTimeInMillis/1000), 0)
+							s := time.Since(d)
+							result := int64(s.Hours() / 24)
+							fmt.Println(result)
+							return nil
+						}
+						return fmt.Errorf("task(%v) is timeout", esResTask.Task.ID)
 					}
-
-					d := time.Unix(int64(esResTask.StartTimeInMillis/1000), 0)
-					s := time.Since(d)
-					result := int64(s.Hours() / 24)
-					fmt.Println(result + buffer)
-					os.Exit(0)
+					return fmt.Errorf("task(%v) has error: type: %v, reason: %v", esResTask.Task.ID, esResTask.Error.Type, esResTask.Error.Reason)
 				}
-
 			case <-ctx.Done():
 				return ctx.Err()
 			}

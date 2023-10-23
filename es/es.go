@@ -10,17 +10,12 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-	"github.com/po3rin/esazoth/entity"
 )
 
 type ESConfig struct {
 	Username string `default:""`
 	Password string `default:""`
 	Endpoint string `default:"http://localhost:9200"`
-}
-
-type ReindexWaitForCompletionResponse struct {
-	Task string `json:"task"`
 }
 
 type ES struct {
@@ -31,8 +26,10 @@ type ES struct {
 }
 
 type ESTaskResponse struct {
-	Completed bool               `json:"completed"`
-	Task      ESTaskResponseTask `json:"task"`
+	Completed bool                    `json:"completed"`
+	Task      ESTaskResponseTask      `json:"task"`
+	Response  *ESTaskResponseResponse `json:"response"`
+	Error     *ESTaskResponseError    `json:"error"`
 }
 
 type ESTaskResponseTask struct {
@@ -40,7 +37,17 @@ type ESTaskResponseTask struct {
 	ID                 int                  `json:"id"`
 	Status             ESTaskResponseStatus `json:"status"`
 	StartTimeInMillis  uint64               `json:"start_time_in_millis"`
-	RunningTimeInNanos uint64
+	RunningTimeInNanos uint64               `json:"running_time_nanos"`
+}
+
+type ESTaskResponseResponse struct {
+	TimeOut bool   `json:"timed_out"`
+	Total   uint64 `json:"total"`
+}
+
+type ESTaskResponseError struct {
+	Type   string `json:"type"`
+	Reason int    `json:"reason"`
 }
 
 type ESTaskResponseStatus struct {
@@ -67,15 +74,15 @@ func NewClient() (*ES, error) {
 	}, nil
 }
 
-func (e *ES) Task(ctx context.Context, id string) (entity.Task, error) {
+func (e *ES) Task(ctx context.Context, id string) (*ESTaskResponse, error) {
 	endpoint, err := url.JoinPath(e.endpoint, "_tasks", id)
 	if err != nil {
-		return entity.Task{}, err
+		return nil, err
 	}
 
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
-		return entity.Task{}, err
+		return nil, err
 	}
 
 	req.SetBasicAuth(e.username, e.password)
@@ -87,57 +94,19 @@ func (e *ES) Task(ctx context.Context, id string) (entity.Task, error) {
 
 	res, err := e.client.Do(req)
 	if err != nil {
-		return entity.Task{}, err
+		return nil, err
 	}
 	defer res.Body.Close()
 
 	b, err := io.ReadAll(res.Body)
 	if err != nil {
-		return entity.Task{}, err
+		return nil, err
 	}
 
 	var r ESTaskResponse
 	if err := json.Unmarshal(b, &r); err != nil {
-		return entity.Task{}, err
+		return nil, err
 	}
 
-	return entity.Task{ID: fmt.Sprintf("%v:%v", r.Task.Node, r.Task.ID), Completed: r.Completed, StartTimeInMillis: r.Task.StartTimeInMillis}, nil
-}
-
-func (e *ES) ReindexWaitForCompletion(ctx context.Context, body io.Reader) (string, error) {
-	endpoint, err := url.JoinPath(e.endpoint, "_reindex")
-	endpoint = fmt.Sprintf("%s?wait_for_completion=false", endpoint)
-	if err != nil {
-		return "", err
-	}
-
-	req, err := http.NewRequest("POST", endpoint, body)
-	if err != nil {
-		return "", err
-	}
-
-	req.SetBasicAuth(e.username, e.password)
-	req.Header.Set("Content-Type", "application/json")
-
-	if ctx != nil {
-		req.WithContext(ctx)
-	}
-
-	res, err := e.client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer res.Body.Close()
-
-	b, err := io.ReadAll(res.Body)
-	if err != nil {
-		return "", err
-	}
-
-	var r ReindexWaitForCompletionResponse
-	if err := json.Unmarshal(b, &r); err != nil {
-		return "", err
-	}
-
-	return r.Task, nil
+	return &r, nil
 }
