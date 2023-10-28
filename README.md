@@ -21,7 +21,7 @@ result=$(curl -X POST \
     "dest": {
         "index": "test-dist"
     }
-}' | jq .task | tr -d '"' | esazoth )
+}' | jq -r .task esazoth )
 
 # reindex took 3 days ...
 

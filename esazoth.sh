@@ -27,7 +27,7 @@ result=$(curl -X POST \
     "dest": {
         "index": "test-dist"
     }
-}' | jq .task | tr -d '"' | go run ./... )
+}' | jq -r .task | esazoth )
 
 if [ $? -ne 0 ]; then
   msg="Reindexの監視が失敗しました。ログを確認してください。${result}"
