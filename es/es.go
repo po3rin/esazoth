@@ -77,35 +77,39 @@ func NewClient() (*ES, error) {
 func (e *ES) Task(ctx context.Context, id string) (*ESTaskResponse, error) {
 	endpoint, err := url.JoinPath(e.endpoint, "_tasks", id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get task: %w", err)
 	}
 
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get task: %w", err)
 	}
 
-	req.SetBasicAuth(e.username, e.password)
 	req.Header.Set("Content-Type", "application/json")
-
+	req.SetBasicAuth(e.username, e.password)
+	
 	if ctx != nil {
 		req.WithContext(ctx)
 	}
 
 	res, err := e.client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get task: %w", err)
 	}
 	defer res.Body.Close()
 
 	b, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get task: %w", err)
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("get task: %v", string(b))
 	}
 
 	var r ESTaskResponse
 	if err := json.Unmarshal(b, &r); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get task: %v: %w", string(b), err)
 	}
 
 	return &r, nil
